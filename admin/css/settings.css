@@ -97,3 +97,113 @@
     border-color: #dc3545;
     color: #721c24;
 }
+
+/* Collapsible Sections */
+.aitwp-section {
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    margin-bottom: 15px;
+}
+
+.aitwp-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    background: #f6f7f7;
+    border-bottom: 1px solid #c3c4c7;
+}
+
+.aitwp-section-header.aitwp-collapsible {
+    cursor: pointer;
+    user-select: none;
+}
+
+.aitwp-section-header.aitwp-collapsible:hover {
+    background: #f0f0f1;
+}
+
+.aitwp-section-header h4 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #1d2327;
+}
+
+.aitwp-toggle-icon {
+    color: #646970;
+    font-size: 20px;
+    transition: transform 0.2s ease;
+}
+
+.aitwp-section-content {
+    padding: 0 15px 15px;
+    display: none;
+}
+
+/* Open state */
+.aitwp-section-open > .aitwp-section-header {
+    border-bottom-color: #c3c4c7;
+}
+
+.aitwp-section-open > .aitwp-section-content {
+    display: block;
+}
+
+.aitwp-section-open .aitwp-toggle-icon {
+    transform: rotate(180deg);
+}
+
+/* First section (Basic Info) always open, no collapsible header */
+.aitwp-section:first-child > .aitwp-section-header {
+    cursor: default;
+}
+
+.aitwp-section:first-child > .aitwp-section-header:hover {
+    background: #f6f7f7;
+}
+
+/* Form table adjustments within sections */
+.aitwp-section .form-table {
+    margin-top: 10px;
+}
+
+.aitwp-section .form-table th {
+    padding-top: 15px;
+    padding-bottom: 15px;
+    vertical-align: top;
+}
+
+.aitwp-section .form-table td {
+    padding-top: 15px;
+    padding-bottom: 15px;
+}
+
+/* Textarea styling */
+.aitwp-section textarea {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+}
+
+/* Audience preview styling */
+.aitwp-audience-preview {
+    color: #646970;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.aitwp-audience-meta {
+    color: #787c82;
+    font-size: 12px;
+}
+
+/* Select dropdowns in sections */
+.aitwp-section select {
+    min-width: 250px;
+}
+
+/* Placeholder text styling for textareas */
+.aitwp-section textarea::placeholder {
+    color: #a7aaad;
+    font-style: italic;
+}

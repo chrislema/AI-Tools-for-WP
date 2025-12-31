@@ -54,10 +54,13 @@ class AITWP_Rewriter {
         // Prepare content
         $prepared_content = $this->prepare_content( $content );
 
+        // Compose voice profile into prompt text
+        $voice_prompt = $this->compose_voice_profile_prompt( $voice_profile );
+
         // Get rewritten content from AI
         $result = $provider->rewrite_content(
             $prepared_content,
-            $voice_profile['content'],
+            $voice_prompt,
             $audience
         );
 
@@ -94,6 +97,173 @@ class AITWP_Rewriter {
         }
 
         return array();
+    }
+
+    /**
+     * Compose a voice profile into a prompt string.
+     *
+     * Handles both old-style (single content field) and new structured profiles.
+     *
+     * @param array $profile The voice profile.
+     * @return string The composed prompt text.
+     */
+    private function compose_voice_profile_prompt( $profile ) {
+        // Check if this is an old-style profile with just 'content' field
+        if ( ! empty( $profile['content'] ) && empty( $profile['voice_identity'] ) ) {
+            return $profile['content'];
+        }
+
+        $parts = array();
+
+        // Voice Identity
+        if ( ! empty( $profile['voice_identity'] ) ) {
+            $parts[] = "## Voice Identity\n" . $profile['voice_identity'];
+        }
+
+        // Tone & Energy
+        if ( ! empty( $profile['tone_energy'] ) && is_array( $profile['tone_energy'] ) ) {
+            $tone_parts = array();
+            $energy = $profile['tone_energy'];
+
+            if ( ! empty( $energy['energy_level'] ) ) {
+                $tone_parts[] = 'Energy Level: ' . ucfirst( $energy['energy_level'] );
+            }
+            if ( ! empty( $energy['humor_style'] ) ) {
+                $tone_parts[] = 'Humor Style: ' . ucfirst( $energy['humor_style'] );
+            }
+            if ( ! empty( $energy['emotional_range'] ) ) {
+                $tone_parts[] = 'Emotional Range: ' . ucfirst( $energy['emotional_range'] );
+            }
+
+            if ( ! empty( $tone_parts ) ) {
+                $parts[] = "## Tone & Energy\n- " . implode( "\n- ", $tone_parts );
+            }
+        }
+
+        // Language Patterns
+        if ( ! empty( $profile['language_patterns'] ) && is_array( $profile['language_patterns'] ) ) {
+            $lang_parts = array();
+            $lang = $profile['language_patterns'];
+
+            if ( ! empty( $lang['sentence_structure'] ) ) {
+                $lang_parts[] = "**Sentence Structure:** " . $lang['sentence_structure'];
+            }
+            if ( ! empty( $lang['vocabulary'] ) ) {
+                $lang_parts[] = "**Vocabulary:** " . $lang['vocabulary'];
+            }
+            if ( ! empty( $lang['contractions'] ) ) {
+                $lang_parts[] = "**Contractions & Formality:** " . $lang['contractions'];
+            }
+            if ( ! empty( $lang['punctuation'] ) ) {
+                $lang_parts[] = "**Punctuation:** " . $lang['punctuation'];
+            }
+
+            if ( ! empty( $lang_parts ) ) {
+                $parts[] = "## Language Patterns\n" . implode( "\n\n", $lang_parts );
+            }
+        }
+
+        // Additional Patterns
+        if ( ! empty( $profile['additional_patterns'] ) && is_array( $profile['additional_patterns'] ) ) {
+            $add_parts = array();
+            $add = $profile['additional_patterns'];
+
+            if ( ! empty( $add['paragraph_structure'] ) ) {
+                $add_parts[] = "**Paragraph Structure:** " . $add['paragraph_structure'];
+            }
+            if ( ! empty( $add['opening_moves'] ) ) {
+                $add_parts[] = "**Opening Moves:** " . $add['opening_moves'];
+            }
+            if ( ! empty( $add['closing_moves'] ) ) {
+                $add_parts[] = "**Closing Moves:** " . $add['closing_moves'];
+            }
+            if ( ! empty( $add['transitions'] ) ) {
+                $add_parts[] = "**Transitions:** " . $add['transitions'];
+            }
+            if ( ! empty( $add['examples_evidence'] ) ) {
+                $add_parts[] = "**Examples & Evidence:** " . $add['examples_evidence'];
+            }
+            if ( ! empty( $add['distinctive'] ) ) {
+                $add_parts[] = "**Distinctive Patterns:** " . $add['distinctive'];
+            }
+
+            if ( ! empty( $add_parts ) ) {
+                $parts[] = "## Additional Writing Patterns\n" . implode( "\n\n", $add_parts );
+            }
+        }
+
+        // Philosophy sections
+        $philosophy_parts = array();
+        if ( ! empty( $profile['content_philosophy'] ) ) {
+            $philosophy_parts[] = "**Content Philosophy:** " . $profile['content_philosophy'];
+        }
+        if ( ! empty( $profile['credibility_authority'] ) ) {
+            $philosophy_parts[] = "**Credibility & Authority:** " . $profile['credibility_authority'];
+        }
+        if ( ! empty( $profile['audience_relationship'] ) ) {
+            $philosophy_parts[] = "**Audience Relationship:** " . $profile['audience_relationship'];
+        }
+        if ( ! empty( $profile['handling_disagreement'] ) ) {
+            $philosophy_parts[] = "**Handling Disagreement:** " . $profile['handling_disagreement'];
+        }
+
+        if ( ! empty( $philosophy_parts ) ) {
+            $parts[] = "## Philosophy & Approach\n" . implode( "\n\n", $philosophy_parts );
+        }
+
+        // Platform Adaptation
+        if ( ! empty( $profile['platform_adaptation'] ) && is_array( $profile['platform_adaptation'] ) ) {
+            $platform_parts = array();
+            $platform = $profile['platform_adaptation'];
+
+            if ( ! empty( $platform['twitter'] ) ) {
+                $platform_parts[] = "**Twitter/X:** " . $platform['twitter'];
+            }
+            if ( ! empty( $platform['linkedin'] ) ) {
+                $platform_parts[] = "**LinkedIn:** " . $platform['linkedin'];
+            }
+            if ( ! empty( $platform['facebook'] ) ) {
+                $platform_parts[] = "**Facebook:** " . $platform['facebook'];
+            }
+            if ( ! empty( $platform['blog'] ) ) {
+                $platform_parts[] = "**Blog/Long-form:** " . $platform['blog'];
+            }
+
+            if ( ! empty( $platform_parts ) ) {
+                $parts[] = "## Platform Adaptation\n" . implode( "\n\n", $platform_parts );
+            }
+        }
+
+        // Guardrails
+        if ( ! empty( $profile['guardrails'] ) && is_array( $profile['guardrails'] ) ) {
+            $guardrails_parts = array();
+            $guardrails = $profile['guardrails'];
+
+            if ( ! empty( $guardrails['never_words'] ) && is_array( $guardrails['never_words'] ) ) {
+                $guardrails_parts[] = "**Words to NEVER use:** " . implode( ', ', $guardrails['never_words'] );
+            }
+            if ( ! empty( $guardrails['never_phrases'] ) && is_array( $guardrails['never_phrases'] ) ) {
+                $guardrails_parts[] = "**Phrases to NEVER use:**\n- " . implode( "\n- ", $guardrails['never_phrases'] );
+            }
+            if ( ! empty( $guardrails['never_patterns'] ) && is_array( $guardrails['never_patterns'] ) ) {
+                $guardrails_parts[] = "**Patterns to NEVER use:**\n- " . implode( "\n- ", $guardrails['never_patterns'] );
+            }
+            if ( ! empty( $guardrails['always_do'] ) && is_array( $guardrails['always_do'] ) ) {
+                $guardrails_parts[] = "**ALWAYS do these things:**\n- " . implode( "\n- ", $guardrails['always_do'] );
+            }
+
+            if ( ! empty( $guardrails_parts ) ) {
+                $parts[] = "## Anti-AI Guardrails (CRITICAL)\n" . implode( "\n\n", $guardrails_parts );
+            }
+        }
+
+        // Quick Reference
+        if ( ! empty( $profile['quick_reference'] ) && is_array( $profile['quick_reference'] ) ) {
+            $parts[] = "## Quick Reference\n- " . implode( "\n- ", $profile['quick_reference'] );
+        }
+
+        // Join all parts with double newlines
+        return implode( "\n\n", $parts );
     }
 
     /**

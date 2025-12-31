@@ -46,8 +46,10 @@ class AITWP_Settings {
         add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_scripts' ) );
         add_action( 'wp_ajax_aitwp_save_voice_profile', array( $this, 'ajax_save_voice_profile' ) );
         add_action( 'wp_ajax_aitwp_delete_voice_profile', array( $this, 'ajax_delete_voice_profile' ) );
+        add_action( 'wp_ajax_aitwp_get_profiles_data', array( $this, 'ajax_get_profiles_data' ) );
         add_action( 'wp_ajax_aitwp_save_audience', array( $this, 'ajax_save_audience' ) );
         add_action( 'wp_ajax_aitwp_delete_audience', array( $this, 'ajax_delete_audience' ) );
+        add_action( 'wp_ajax_aitwp_get_audiences_data', array( $this, 'ajax_get_audiences_data' ) );
     }
 
     /**
@@ -232,9 +234,9 @@ class AITWP_Settings {
             wp_send_json_error( __( 'Permission denied.', 'ai-tools-for-wp' ) );
         }
 
-        $id      = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';
-        $name    = isset( $_POST['name'] ) ? sanitize_text_field( wp_unslash( $_POST['name'] ) ) : '';
-        $content = isset( $_POST['content'] ) ? wp_kses_post( wp_unslash( $_POST['content'] ) ) : '';
+        // phpcs:disable WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        $id   = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';
+        $name = isset( $_POST['name'] ) ? sanitize_text_field( wp_unslash( $_POST['name'] ) ) : '';
 
         if ( empty( $name ) ) {
             wp_send_json_error( __( 'Name is required.', 'ai-tools-for-wp' ) );
@@ -247,12 +249,77 @@ class AITWP_Settings {
             $id = 'vp_' . uniqid();
         }
 
+        // Helper function to sanitize textarea
+        $sanitize_textarea = function( $key ) {
+            return isset( $_POST[ $key ] ) ? sanitize_textarea_field( wp_unslash( $_POST[ $key ] ) ) : '';
+        };
+
+        // Helper function to convert textarea lines to array
+        $text_to_array = function( $key ) {
+            $text = isset( $_POST[ $key ] ) ? sanitize_textarea_field( wp_unslash( $_POST[ $key ] ) ) : '';
+            return AITWP_Migration::text_to_array( $text );
+        };
+
         $profiles[ $id ] = array(
             'id'      => $id,
             'name'    => $name,
-            'content' => $content,
             'updated' => current_time( 'mysql' ),
+            'version' => AITWP_Migration::CURRENT_VERSION,
+
+            // Voice Identity
+            'voice_identity' => $sanitize_textarea( 'voice_identity' ),
+
+            // Tone & Energy
+            'tone_energy' => array(
+                'energy_level'    => isset( $_POST['tone_energy_level'] ) ? sanitize_text_field( wp_unslash( $_POST['tone_energy_level'] ) ) : 'medium',
+                'humor_style'     => isset( $_POST['tone_humor_style'] ) ? sanitize_text_field( wp_unslash( $_POST['tone_humor_style'] ) ) : 'subtle',
+                'emotional_range' => isset( $_POST['tone_emotional_range'] ) ? sanitize_text_field( wp_unslash( $_POST['tone_emotional_range'] ) ) : 'balanced',
+            ),
+
+            // Language Patterns
+            'language_patterns' => array(
+                'sentence_structure' => $sanitize_textarea( 'lang_sentence_structure' ),
+                'vocabulary'         => $sanitize_textarea( 'lang_vocabulary' ),
+                'contractions'       => $sanitize_textarea( 'lang_contractions' ),
+                'punctuation'        => $sanitize_textarea( 'lang_punctuation' ),
+            ),
+
+            // Additional Patterns
+            'additional_patterns' => array(
+                'paragraph_structure' => $sanitize_textarea( 'pattern_paragraph_structure' ),
+                'opening_moves'       => $sanitize_textarea( 'pattern_opening_moves' ),
+                'closing_moves'       => $sanitize_textarea( 'pattern_closing_moves' ),
+                'transitions'         => $sanitize_textarea( 'pattern_transitions' ),
+                'examples_evidence'   => $sanitize_textarea( 'pattern_examples_evidence' ),
+                'distinctive'         => $sanitize_textarea( 'pattern_distinctive' ),
+            ),
+
+            // Philosophy sections
+            'content_philosophy'    => $sanitize_textarea( 'content_philosophy' ),
+            'credibility_authority' => $sanitize_textarea( 'credibility_authority' ),
+            'audience_relationship' => $sanitize_textarea( 'audience_relationship' ),
+            'handling_disagreement' => $sanitize_textarea( 'handling_disagreement' ),
+
+            // Platform Adaptation
+            'platform_adaptation' => array(
+                'twitter'  => $sanitize_textarea( 'platform_twitter' ),
+                'linkedin' => $sanitize_textarea( 'platform_linkedin' ),
+                'facebook' => $sanitize_textarea( 'platform_facebook' ),
+                'blog'     => $sanitize_textarea( 'platform_blog' ),
+            ),
+
+            // Guardrails (one per line)
+            'guardrails' => array(
+                'never_words'    => $text_to_array( 'guardrails_never_words' ),
+                'never_phrases'  => $text_to_array( 'guardrails_never_phrases' ),
+                'never_patterns' => $text_to_array( 'guardrails_never_patterns' ),
+                'always_do'      => $text_to_array( 'guardrails_always_do' ),
+            ),
+
+            // Quick Reference (one per line)
+            'quick_reference' => $text_to_array( 'quick_reference' ),
         );
+        // phpcs:enable WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 
         update_option( 'aitwp_voice_profiles', $profiles );
 
@@ -298,9 +365,9 @@ class AITWP_Settings {
             wp_send_json_error( __( 'Permission denied.', 'ai-tools-for-wp' ) );
         }
 
-        $id          = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';
-        $name        = isset( $_POST['name'] ) ? sanitize_text_field( wp_unslash( $_POST['name'] ) ) : '';
-        $description = isset( $_POST['description'] ) ? sanitize_textarea_field( wp_unslash( $_POST['description'] ) ) : '';
+        // phpcs:disable WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        $id   = isset( $_POST['id'] ) ? sanitize_text_field( wp_unslash( $_POST['id'] ) ) : '';
+        $name = isset( $_POST['name'] ) ? sanitize_text_field( wp_unslash( $_POST['name'] ) ) : '';
 
         if ( empty( $name ) ) {
             wp_send_json_error( __( 'Name is required.', 'ai-tools-for-wp' ) );
@@ -313,12 +380,24 @@ class AITWP_Settings {
             $id = 'aud_' . uniqid();
         }
 
+        // Helper function to convert textarea lines to array
+        $text_to_array = function( $key ) {
+            $text = isset( $_POST[ $key ] ) ? sanitize_textarea_field( wp_unslash( $_POST[ $key ] ) ) : '';
+            return AITWP_Migration::text_to_array( $text );
+        };
+
         $audiences[ $id ] = array(
-            'id'          => $id,
-            'name'        => $name,
-            'description' => $description,
-            'updated'     => current_time( 'mysql' ),
+            'id'           => $id,
+            'name'         => $name,
+            'updated'      => current_time( 'mysql' ),
+            'version'      => AITWP_Migration::CURRENT_VERSION,
+            'definition'   => isset( $_POST['definition'] ) ? sanitize_textarea_field( wp_unslash( $_POST['definition'] ) ) : '',
+            'goals'        => $text_to_array( 'goals' ),
+            'pains'        => $text_to_array( 'pains' ),
+            'hopes_dreams' => $text_to_array( 'hopes_dreams' ),
+            'fears'        => $text_to_array( 'fears' ),
         );
+        // phpcs:enable WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 
         update_option( 'aitwp_audiences', $audiences );
 
@@ -352,5 +431,33 @@ class AITWP_Settings {
         }
 
         wp_send_json_success( array( 'audiences' => $audiences ) );
+    }
+
+    /**
+     * AJAX handler to get all voice profiles data.
+     */
+    public function ajax_get_profiles_data() {
+        check_ajax_referer( 'aitwp_admin_nonce', 'nonce' );
+
+        if ( ! current_user_can( 'edit_posts' ) ) {
+            wp_send_json_error( __( 'Permission denied.', 'ai-tools-for-wp' ) );
+        }
+
+        $profiles = get_option( 'aitwp_voice_profiles', array() );
+        wp_send_json_success( $profiles );
+    }
+
+    /**
+     * AJAX handler to get all audiences data.
+     */
+    public function ajax_get_audiences_data() {
+        check_ajax_referer( 'aitwp_admin_nonce', 'nonce' );
+
+        if ( ! current_user_can( 'edit_posts' ) ) {
+            wp_send_json_error( __( 'Permission denied.', 'ai-tools-for-wp' ) );
+        }
+
+        $audiences = get_option( 'aitwp_audiences', array() );
+        wp_send_json_success( $audiences );
     }
 }

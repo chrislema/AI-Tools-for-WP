@@ -69,6 +69,9 @@ class AITWP_Plugin {
      * Initialize WordPress hooks.
      */
     private function init_hooks() {
+        // Run migrations on admin init
+        add_action( 'admin_init', array( 'AITWP_Migration', 'maybe_run_migrations' ) );
+
         // Register REST API routes
         add_action( 'rest_api_init', array( $this, 'register_rest_routes' ) );
 

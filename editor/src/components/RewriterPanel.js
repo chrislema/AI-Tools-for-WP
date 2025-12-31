@@ -19,6 +19,7 @@ import { __ } from '@wordpress/i18n';
 
 import { fetchVoiceProfiles, rewriteContent } from '../api/endpoints';
 import { STORE_NAME } from '../store';
+import VoiceProfilePreview from './VoiceProfilePreview';
 
 /**
  * RewriterPanel Component
@@ -71,6 +72,14 @@ const RewriterPanel = () => {
         } finally {
             setIsLoading( false );
         }
+    };
+
+    /**
+     * Get the currently selected profile object.
+     */
+    const getSelectedProfileObject = () => {
+        if ( ! selectedProfile ) return null;
+        return profiles.find( ( p ) => p.id === selectedProfile ) || null;
     };
 
     /**
@@ -164,6 +173,8 @@ const RewriterPanel = () => {
         );
     }
 
+    const selectedProfileObject = getSelectedProfileObject();
+
     return (
         <>
             <PanelBody title={ __( 'Rewrite Content', 'ai-tools-for-wp' ) } initialOpen={ false }>
@@ -183,6 +194,10 @@ const RewriterPanel = () => {
                     options={ getProfileOptions() }
                     onChange={ setSelectedProfile }
                 />
+
+                { selectedProfileObject && (
+                    <VoiceProfilePreview profile={ selectedProfileObject } />
+                ) }
 
                 <Button
                     variant="primary"
