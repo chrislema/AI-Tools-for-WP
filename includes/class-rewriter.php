@@ -111,8 +111,13 @@ class AITWP_Rewriter {
         // Normalize line breaks
         $content = str_replace( array( "\r\n", "\r" ), "\n", $content );
 
-        // Limit length to avoid token limits
-        $max_length = 12000;
+        /**
+         * Filter the maximum content length for rewriting.
+         *
+         * @param int $max_length Maximum characters to send to AI.
+         */
+        $max_length = apply_filters( 'aitwp_rewriter_max_content_length', 12000 );
+
         if ( strlen( $content ) > $max_length ) {
             $content = substr( $content, 0, $max_length );
             // Try to cut at a sentence boundary

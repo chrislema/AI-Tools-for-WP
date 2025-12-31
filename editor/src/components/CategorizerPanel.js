@@ -17,6 +17,7 @@ import {
 import { __ } from '@wordpress/i18n';
 
 import { categorizeContent } from '../api/endpoints';
+import { STORE_NAME } from '../store';
 
 /**
  * CategorizerPanel Component
@@ -29,13 +30,15 @@ const CategorizerPanel = () => {
     const [ autoApply, setAutoApply ] = useState( window.aitwpData?.autoApply || false );
     const [ error, setError ] = useState( null );
 
-    // Get post content and current terms
-    const { postContent, currentCategories, currentTags } = useSelect( ( select ) => {
+    // Get post content, current terms, and selected audience from stores
+    const { postContent, currentCategories, currentTags, selectedAudienceId } = useSelect( ( select ) => {
         const editor = select( 'core/editor' );
+        const aitwpStore = select( STORE_NAME );
         return {
             postContent: editor.getEditedPostContent(),
             currentCategories: editor.getEditedPostAttribute( 'categories' ) || [],
             currentTags: editor.getEditedPostAttribute( 'tags' ) || [],
+            selectedAudienceId: aitwpStore.getSelectedAudienceId(),
         };
     }, [] );
 
@@ -56,10 +59,7 @@ const CategorizerPanel = () => {
             setError( null );
             setSuggestions( null );
 
-            // Get selected audience from AudienceSelector
-            const audienceId = window.aitwpSelectedAudience || '';
-
-            const result = await categorizeContent( postContent, audienceId );
+            const result = await categorizeContent( postContent, selectedAudienceId );
 
             setSuggestions( result );
 

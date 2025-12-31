@@ -9,6 +9,10 @@ import { PluginSidebar, PluginSidebarMoreMenuItem } from '@wordpress/edit-post';
 import { __ } from '@wordpress/i18n';
 import { starFilled } from '@wordpress/icons';
 
+// Import store to register it
+import './store';
+
+import ErrorBoundary from './components/ErrorBoundary';
 import AudienceSelector from './components/AudienceSelector';
 import CategorizerPanel from './components/CategorizerPanel';
 import RewriterPanel from './components/RewriterPanel';
@@ -30,9 +34,15 @@ const AIToolsSidebar = () => {
                 icon={ starFilled }
             >
                 <div className="aitwp-sidebar">
-                    <AudienceSelector />
-                    <CategorizerPanel />
-                    <RewriterPanel />
+                    <ErrorBoundary panelTitle={ __( 'Target Audience', 'ai-tools-for-wp' ) }>
+                        <AudienceSelector />
+                    </ErrorBoundary>
+                    <ErrorBoundary panelTitle={ __( 'Auto-Categorize', 'ai-tools-for-wp' ) }>
+                        <CategorizerPanel />
+                    </ErrorBoundary>
+                    <ErrorBoundary panelTitle={ __( 'Rewrite Content', 'ai-tools-for-wp' ) }>
+                        <RewriterPanel />
+                    </ErrorBoundary>
                 </div>
             </PluginSidebar>
         </>

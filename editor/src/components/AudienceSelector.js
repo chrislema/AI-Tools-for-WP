@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect } from '@wordpress/element';
-import { useSelect } from '@wordpress/data';
+import { useSelect, useDispatch } from '@wordpress/data';
 import {
     PanelBody,
     SelectControl,
@@ -16,23 +16,34 @@ import {
 import { __ } from '@wordpress/i18n';
 
 import { fetchAudiences, suggestAudience } from '../api/endpoints';
+import { STORE_NAME } from '../store';
 
 /**
  * AudienceSelector Component
  */
 const AudienceSelector = () => {
-    const [ audiences, setAudiences ] = useState( [] );
-    const [ selectedAudience, setSelectedAudience ] = useState( '' );
-    const [ isLoading, setIsLoading ] = useState( true );
     const [ isSuggesting, setIsSuggesting ] = useState( false );
     const [ suggestion, setSuggestion ] = useState( null );
     const [ error, setError ] = useState( null );
+
+    // Get state from our custom store
+    const { audiences, selectedAudienceId, isLoading } = useSelect( ( select ) => {
+        const store = select( STORE_NAME );
+        return {
+            audiences: store.getAudiences(),
+            selectedAudienceId: store.getSelectedAudienceId(),
+            isLoading: store.isLoadingAudiences(),
+        };
+    }, [] );
 
     // Get post content from editor
     const postContent = useSelect( ( select ) => {
         const { getEditedPostContent } = select( 'core/editor' );
         return getEditedPostContent();
     }, [] );
+
+    // Dispatch actions
+    const { setSelectedAudience, setAudiences, setLoadingAudiences } = useDispatch( STORE_NAME );
 
     // Load audiences on mount
     useEffect( () => {
@@ -44,7 +55,7 @@ const AudienceSelector = () => {
      */
     const loadAudiences = async () => {
         try {
-            setIsLoading( true );
+            setLoadingAudiences( true );
             setError( null );
             const data = await fetchAudiences();
 
@@ -54,7 +65,7 @@ const AudienceSelector = () => {
         } catch ( err ) {
             setError( err.message || __( 'Failed to load audiences.', 'ai-tools-for-wp' ) );
         } finally {
-            setIsLoading( false );
+            setLoadingAudiences( false );
         }
     };
 
@@ -105,11 +116,6 @@ const AudienceSelector = () => {
         return options;
     };
 
-    // Store selected audience in a way other components can access
-    useEffect( () => {
-        window.aitwpSelectedAudience = selectedAudience;
-    }, [ selectedAudience ] );
-
     if ( isLoading ) {
         return (
             <PanelBody title={ __( 'Target Audience', 'ai-tools-for-wp' ) } initialOpen={ true }>
@@ -141,7 +147,7 @@ const AudienceSelector = () => {
 
             <SelectControl
                 label={ __( 'Select Audience', 'ai-tools-for-wp' ) }
-                value={ selectedAudience }
+                value={ selectedAudienceId }
                 options={ getAudienceOptions() }
                 onChange={ ( value ) => {
                     setSelectedAudience( value );
