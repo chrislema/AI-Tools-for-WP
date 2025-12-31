@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+
+# Build artifacts (keep the directory structure)
+editor/build/*.js
+editor/build/*.css
+editor/build/*.asset.php
+!editor/build/.gitkeep
+
+# IDE and OS files
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# WordPress uploads (if testing locally)
+uploads/
+
+# Composer (if used later)
+vendor/
+composer.lock

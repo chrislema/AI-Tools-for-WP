@@ -1,0 +1,99 @@
+/**
+ * AI Tools for WP - Admin Settings Styles
+ */
+
+/* Settings content wrapper */
+.aitwp-settings-content {
+    margin-top: 20px;
+}
+
+/* Item lists (profiles and audiences) */
+.aitwp-profiles-list,
+.aitwp-audiences-list {
+    margin: 20px 0;
+}
+
+.aitwp-profile-item,
+.aitwp-audience-item {
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    margin-bottom: 10px;
+    padding: 15px;
+}
+
+.aitwp-profile-header,
+.aitwp-audience-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.aitwp-profile-name,
+.aitwp-audience-name {
+    font-size: 14px;
+}
+
+.aitwp-profile-actions,
+.aitwp-audience-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.aitwp-profile-preview,
+.aitwp-audience-description {
+    color: #646970;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.aitwp-no-items {
+    color: #646970;
+    font-style: italic;
+}
+
+/* Forms */
+.aitwp-form .form-table th {
+    width: 200px;
+}
+
+.aitwp-form textarea.large-text {
+    font-family: Consolas, Monaco, monospace;
+}
+
+/* API Keys tab */
+.aitwp-current-key {
+    margin-bottom: 8px;
+}
+
+.aitwp-current-key code {
+    background: #f0f0f1;
+    padding: 3px 6px;
+    font-size: 13px;
+}
+
+/* Loading state */
+.aitwp-loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+/* Messages */
+.aitwp-message {
+    padding: 10px 15px;
+    margin: 10px 0;
+    border-left: 4px solid;
+}
+
+.aitwp-message-success {
+    background: #d4edda;
+    border-color: #28a745;
+    color: #155724;
+}
+
+.aitwp-message-error {
+    background: #f8d7da;
+    border-color: #dc3545;
+    color: #721c24;
+}
