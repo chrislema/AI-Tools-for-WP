@@ -1,0 +1,26 @@
+{
+  "name": "ai-tools-for-wp",
+  "version": "1.0.0",
+  "description": "AI-powered content tools for WordPress",
+  "author": "Chris Lema",
+  "license": "GPL-2.0-or-later",
+  "scripts": {
+    "build": "wp-scripts build --webpack-src-dir=editor/src --output-path=editor/build",
+    "start": "wp-scripts start --webpack-src-dir=editor/src --output-path=editor/build",
+    "lint:js": "wp-scripts lint-js editor/src",
+    "format": "wp-scripts format editor/src"
+  },
+  "devDependencies": {
+    "@wordpress/scripts": "^28.0.0"
+  },
+  "dependencies": {
+    "@wordpress/api-fetch": "^7.0.0",
+    "@wordpress/components": "^28.0.0",
+    "@wordpress/compose": "^7.0.0",
+    "@wordpress/data": "^10.0.0",
+    "@wordpress/edit-post": "^8.0.0",
+    "@wordpress/element": "^6.0.0",
+    "@wordpress/i18n": "^5.0.0",
+    "@wordpress/plugins": "^7.0.0"
+  }
+}

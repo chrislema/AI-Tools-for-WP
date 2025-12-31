@@ -1,11 +1,9 @@
 # Dependencies
 node_modules/
 
-# Build artifacts (keep the directory structure)
-editor/build/*.js
-editor/build/*.css
-editor/build/*.asset.php
-!editor/build/.gitkeep
+# Build artifacts are INCLUDED (not ignored) so users can download and use directly
+# Only ignore the .gitkeep placeholder
+editor/build/.gitkeep
 
 # IDE and OS files
 .DS_Store
