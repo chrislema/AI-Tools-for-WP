@@ -18,6 +18,7 @@ import {
 import { __ } from '@wordpress/i18n';
 
 import { fetchVoiceProfiles, rewriteContent } from '../api/endpoints';
+import { STORE_NAME } from '../store';
 
 /**
  * RewriterPanel Component
@@ -31,9 +32,13 @@ const RewriterPanel = () => {
     const [ showPreview, setShowPreview ] = useState( false );
     const [ error, setError ] = useState( null );
 
-    // Get post content
-    const postContent = useSelect( ( select ) => {
-        return select( 'core/editor' ).getEditedPostContent();
+    // Get post content and selected audience from stores
+    const { postContent, selectedAudienceId } = useSelect( ( select ) => {
+        const aitwpStore = select( STORE_NAME );
+        return {
+            postContent: select( 'core/editor' ).getEditedPostContent(),
+            selectedAudienceId: aitwpStore.getSelectedAudienceId(),
+        };
     }, [] );
 
     // Dispatch for editing post
@@ -87,10 +92,7 @@ const RewriterPanel = () => {
             setError( null );
             setRewrittenContent( '' );
 
-            // Get selected audience
-            const audienceId = window.aitwpSelectedAudience || '';
-
-            const result = await rewriteContent( postContent, selectedProfile, audienceId );
+            const result = await rewriteContent( postContent, selectedProfile, selectedAudienceId );
 
             if ( result.rewritten_content ) {
                 setRewrittenContent( result.rewritten_content );

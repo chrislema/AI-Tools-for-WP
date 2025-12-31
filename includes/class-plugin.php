@@ -32,6 +32,20 @@ class AITWP_Plugin {
     private $settings = null;
 
     /**
+     * Rate limit: maximum requests per minute.
+     *
+     * @var int
+     */
+    private const RATE_LIMIT_MAX_REQUESTS = 10;
+
+    /**
+     * Rate limit: time window in seconds.
+     *
+     * @var int
+     */
+    private const RATE_LIMIT_WINDOW = 60;
+
+    /**
      * Get the singleton instance.
      *
      * @return AITWP_Plugin
@@ -83,6 +97,22 @@ class AITWP_Plugin {
             'methods'             => 'POST',
             'callback'            => array( $this, 'handle_categorize' ),
             'permission_callback' => array( $this, 'check_edit_permission' ),
+            'args'                => array(
+                'content'     => array(
+                    'required'          => true,
+                    'type'              => 'string',
+                    'sanitize_callback' => 'wp_kses_post',
+                    'validate_callback' => array( $this, 'validate_content' ),
+                    'description'       => __( 'The post content to analyze.', 'ai-tools-for-wp' ),
+                ),
+                'audience_id' => array(
+                    'required'          => false,
+                    'type'              => 'string',
+                    'sanitize_callback' => 'sanitize_text_field',
+                    'default'           => '',
+                    'description'       => __( 'Optional audience ID for context.', 'ai-tools-for-wp' ),
+                ),
+            ),
         ) );
 
         // Rewrite endpoint
@@ -90,6 +120,29 @@ class AITWP_Plugin {
             'methods'             => 'POST',
             'callback'            => array( $this, 'handle_rewrite' ),
             'permission_callback' => array( $this, 'check_edit_permission' ),
+            'args'                => array(
+                'content'          => array(
+                    'required'          => true,
+                    'type'              => 'string',
+                    'sanitize_callback' => 'wp_kses_post',
+                    'validate_callback' => array( $this, 'validate_content' ),
+                    'description'       => __( 'The content to rewrite.', 'ai-tools-for-wp' ),
+                ),
+                'voice_profile_id' => array(
+                    'required'          => true,
+                    'type'              => 'string',
+                    'sanitize_callback' => 'sanitize_text_field',
+                    'validate_callback' => array( $this, 'validate_voice_profile_id' ),
+                    'description'       => __( 'The voice profile ID to use.', 'ai-tools-for-wp' ),
+                ),
+                'audience_id'      => array(
+                    'required'          => false,
+                    'type'              => 'string',
+                    'sanitize_callback' => 'sanitize_text_field',
+                    'default'           => '',
+                    'description'       => __( 'Optional audience ID for context.', 'ai-tools-for-wp' ),
+                ),
+            ),
         ) );
 
         // Suggest audience endpoint
@@ -97,6 +150,15 @@ class AITWP_Plugin {
             'methods'             => 'POST',
             'callback'            => array( $this, 'handle_suggest_audience' ),
             'permission_callback' => array( $this, 'check_edit_permission' ),
+            'args'                => array(
+                'content' => array(
+                    'required'          => true,
+                    'type'              => 'string',
+                    'sanitize_callback' => 'wp_kses_post',
+                    'validate_callback' => array( $this, 'validate_content' ),
+                    'description'       => __( 'The post content to analyze.', 'ai-tools-for-wp' ),
+                ),
+            ),
         ) );
 
         // Get voice profiles
@@ -124,18 +186,119 @@ class AITWP_Plugin {
     }
 
     /**
+     * Validate content parameter.
+     *
+     * @param mixed           $value   The parameter value.
+     * @param WP_REST_Request $request The request object.
+     * @param string          $param   The parameter name.
+     * @return bool|WP_Error
+     */
+    public function validate_content( $value, $request, $param ) {
+        if ( ! is_string( $value ) ) {
+            return new WP_Error(
+                'rest_invalid_param',
+                sprintf(
+                    /* translators: %s: parameter name */
+                    __( '%s must be a string.', 'ai-tools-for-wp' ),
+                    $param
+                ),
+                array( 'status' => 400 )
+            );
+        }
+
+        $trimmed = trim( wp_strip_all_tags( $value ) );
+        if ( strlen( $trimmed ) < 50 ) {
+            return new WP_Error(
+                'rest_invalid_param',
+                __( 'Content must be at least 50 characters.', 'ai-tools-for-wp' ),
+                array( 'status' => 400 )
+            );
+        }
+
+        return true;
+    }
+
+    /**
+     * Validate voice profile ID parameter.
+     *
+     * @param mixed           $value   The parameter value.
+     * @param WP_REST_Request $request The request object.
+     * @param string          $param   The parameter name.
+     * @return bool|WP_Error
+     */
+    public function validate_voice_profile_id( $value, $request, $param ) {
+        if ( empty( $value ) ) {
+            return new WP_Error(
+                'rest_invalid_param',
+                __( 'Voice profile ID is required.', 'ai-tools-for-wp' ),
+                array( 'status' => 400 )
+            );
+        }
+
+        $profiles = get_option( 'aitwp_voice_profiles', array() );
+        if ( ! isset( $profiles[ $value ] ) ) {
+            return new WP_Error(
+                'rest_invalid_param',
+                __( 'Invalid voice profile ID.', 'ai-tools-for-wp' ),
+                array( 'status' => 400 )
+            );
+        }
+
+        return true;
+    }
+
+    /**
+     * Check rate limit for current user.
+     *
+     * @return bool|WP_Error True if within limit, WP_Error if exceeded.
+     */
+    private function check_rate_limit() {
+        $user_id = get_current_user_id();
+        $transient_key = 'aitwp_rate_limit_' . $user_id;
+
+        $requests = get_transient( $transient_key );
+        if ( false === $requests ) {
+            $requests = 0;
+        }
+
+        /**
+         * Filter the maximum number of AI requests per minute.
+         *
+         * @param int $max_requests Maximum requests allowed.
+         * @param int $user_id      Current user ID.
+         */
+        $max_requests = apply_filters( 'aitwp_rate_limit_max_requests', self::RATE_LIMIT_MAX_REQUESTS, $user_id );
+
+        if ( $requests >= $max_requests ) {
+            return new WP_Error(
+                'rate_limit_exceeded',
+                __( 'Too many requests. Please wait a moment before trying again.', 'ai-tools-for-wp' ),
+                array( 'status' => 429 )
+            );
+        }
+
+        // Increment counter
+        set_transient( $transient_key, $requests + 1, self::RATE_LIMIT_WINDOW );
+
+        return true;
+    }
+
+    /**
      * Handle categorize request.
      *
      * @param WP_REST_Request $request The request object.
      * @return WP_REST_Response|WP_Error
      */
     public function handle_categorize( $request ) {
+        // Check rate limit
+        $rate_check = $this->check_rate_limit();
+        if ( is_wp_error( $rate_check ) ) {
+            return $rate_check;
+        }
+
+        // Parameters are already sanitized by REST API schema
         $content     = $request->get_param( 'content' );
         $audience_id = $request->get_param( 'audience_id' );
-
-        if ( empty( $content ) ) {
-            return new WP_Error( 'missing_content', __( 'Content is required.', 'ai-tools-for-wp' ), array( 'status' => 400 ) );
-        }
 
         $categorizer = new AITWP_Categorizer();
         $result      = $categorizer->analyze( $content, $audience_id );
@@ -154,13 +317,16 @@ class AITWP_Plugin {
      * @return WP_REST_Response|WP_Error
      */
     public function handle_rewrite( $request ) {
+        // Check rate limit
+        $rate_check = $this->check_rate_limit();
+        if ( is_wp_error( $rate_check ) ) {
+            return $rate_check;
+        }
+
+        // Parameters are already sanitized by REST API schema
         $content          = $request->get_param( 'content' );
         $voice_profile_id = $request->get_param( 'voice_profile_id' );
         $audience_id      = $request->get_param( 'audience_id' );
-
-        if ( empty( $content ) ) {
-            return new WP_Error( 'missing_content', __( 'Content is required.', 'ai-tools-for-wp' ), array( 'status' => 400 ) );
-        }
 
         $rewriter = new AITWP_Rewriter();
         $result   = $rewriter->rewrite( $content, $voice_profile_id, $audience_id );
@@ -179,11 +345,14 @@ class AITWP_Plugin {
      * @return WP_REST_Response|WP_Error
      */
     public function handle_suggest_audience( $request ) {
-        $content = $request->get_param( 'content' );
-
-        if ( empty( $content ) ) {
-            return new WP_Error( 'missing_content', __( 'Content is required.', 'ai-tools-for-wp' ), array( 'status' => 400 ) );
+        // Check rate limit
+        $rate_check = $this->check_rate_limit();
+        if ( is_wp_error( $rate_check ) ) {
+            return $rate_check;
         }
+
+        // Parameters are already sanitized by REST API schema
+        $content = $request->get_param( 'content' );
 
         $categorizer = new AITWP_Categorizer();
         $result      = $categorizer->suggest_audience( $content );

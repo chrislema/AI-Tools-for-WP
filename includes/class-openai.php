@@ -222,6 +222,16 @@ class AITWP_OpenAI extends AITWP_AI_Provider {
 
         if ( $status_code >= 400 ) {
             $error_message = $data['error']['message'] ?? __( 'Unknown API error.', 'ai-tools-for-wp' );
+
+            // Log error for debugging
+            if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+                error_log( sprintf(
+                    'AI Tools for WP: OpenAI API error (%d): %s',
+                    $status_code,
+                    $error_message
+                ) );
+            }
+
             return new WP_Error( 'api_error', $error_message, array( 'status' => $status_code ) );
         }
 

@@ -5,6 +5,18 @@
 (function($) {
     'use strict';
 
+    // Check jQuery availability
+    if ( typeof $ === 'undefined' || typeof $ !== 'function' ) {
+        console.error( 'AI Tools for WP: jQuery is required but not available.' );
+        return;
+    }
+
+    // Check required global data
+    if ( typeof aitwpAdmin === 'undefined' ) {
+        console.error( 'AI Tools for WP: Admin configuration not loaded.' );
+        return;
+    }
+
     // Cache DOM elements
     var $profilesList = $('#aitwp-profiles-list');
     var $profileForm = $('#aitwp-profile-form');

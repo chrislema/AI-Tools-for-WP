@@ -16,6 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Class AITWP_Encryption
  *
  * Provides encryption/decryption using WordPress salts.
+ * Uses random IV for each encryption operation for proper security.
  */
 class AITWP_Encryption {
 
@@ -23,6 +24,16 @@ class AITWP_Encryption {
      * Encryption method.
      */
     private const METHOD = 'aes-256-cbc';
+
+    /**
+     * Prefix to identify encrypted values.
+     */
+    private const ENCRYPTED_PREFIX = 'aitwp_enc_v2:';
+
+    /**
+     * IV length for AES-256-CBC.
+     */
+    private const IV_LENGTH = 16;
 
     /**
      * Get the encryption key derived from WordPress salts.
@@ -36,51 +47,76 @@ class AITWP_Encryption {
     }
 
     /**
-     * Get the initialization vector from WordPress salts.
+     * Generate a random initialization vector.
      *
      * @return string
      */
-    private static function get_iv() {
+    private static function generate_iv() {
+        if ( function_exists( 'random_bytes' ) ) {
+            return random_bytes( self::IV_LENGTH );
+        }
+        // Fallback for older PHP versions
+        return openssl_random_pseudo_bytes( self::IV_LENGTH );
+    }
+
+    /**
+     * Get legacy static IV for backwards compatibility.
+     *
+     * @return string
+     */
+    private static function get_legacy_iv() {
         $salt = defined( 'AUTH_SALT' ) ? AUTH_SALT : 'default-salt';
         $salt .= defined( 'SECURE_AUTH_SALT' ) ? SECURE_AUTH_SALT : '';
-        return substr( hash( 'sha256', $salt, true ), 0, 16 );
+        return substr( hash( 'sha256', $salt, true ), 0, self::IV_LENGTH );
     }
 
     /**
      * Encrypt a value.
      *
+     * Uses a random IV prepended to the ciphertext for proper security.
+     *
      * @param string $value The value to encrypt.
-     * @return string|false The encrypted value (base64 encoded) or false on failure.
+     * @return string|false The encrypted value or false on failure.
      */
     public static function encrypt( $value ) {
         if ( empty( $value ) ) {
             return '';
         }
 
-        if ( ! function_exists( 'openssl_encrypt' ) ) {
-            // Fallback: base64 encode if OpenSSL not available
-            return base64_encode( $value );
+        // Don't re-encrypt already encrypted values
+        if ( self::is_encrypted( $value ) ) {
+            return $value;
         }
+
+        if ( ! function_exists( 'openssl_encrypt' ) ) {
+            // Fallback: base64 encode if OpenSSL not available (not secure, but functional)
+            return self::ENCRYPTED_PREFIX . base64_encode( $value );
+        }
+
+        $iv = self::generate_iv();
 
         $encrypted = openssl_encrypt(
             $value,
             self::METHOD,
             self::get_key(),
-            0,
-            self::get_iv()
+            OPENSSL_RAW_DATA,
+            $iv
         );
 
         if ( false === $encrypted ) {
             return false;
         }
 
-        return base64_encode( $encrypted );
+        // Prepend IV to ciphertext and encode
+        return self::ENCRYPTED_PREFIX . base64_encode( $iv . $encrypted );
     }
 
     /**
      * Decrypt a value.
      *
-     * @param string $value The encrypted value (base64 encoded).
+     * Handles both new format (random IV) and legacy format (static IV).
+     *
+     * @param string $value The encrypted value.
      * @return string|false The decrypted value or false on failure.
      */
     public static function decrypt( $value ) {
@@ -88,8 +124,58 @@ class AITWP_Encryption {
             return '';
         }
 
+        // Handle v2 encryption (random IV)
+        if ( strpos( $value, self::ENCRYPTED_PREFIX ) === 0 ) {
+            return self::decrypt_v2( $value );
+        }
+
+        // Try legacy format without prefix (for backwards compatibility)
+        return self::decrypt_legacy( $value );
+    }
+
+    /**
+     * Decrypt v2 encrypted value (random IV).
+     *
+     * @param string $value The encrypted value with prefix.
+     * @return string|false The decrypted value or false on failure.
+     */
+    private static function decrypt_v2( $value ) {
         if ( ! function_exists( 'openssl_decrypt' ) ) {
             // Fallback: base64 decode if OpenSSL not available
+            $data = substr( $value, strlen( self::ENCRYPTED_PREFIX ) );
+            return base64_decode( $data );
+        }
+
+        $data = substr( $value, strlen( self::ENCRYPTED_PREFIX ) );
+        $decoded = base64_decode( $data );
+
+        if ( false === $decoded || strlen( $decoded ) < self::IV_LENGTH ) {
+            return false;
+        }
+
+        // Extract IV from beginning of decoded data
+        $iv = substr( $decoded, 0, self::IV_LENGTH );
+        $ciphertext = substr( $decoded, self::IV_LENGTH );
+
+        $decrypted = openssl_decrypt(
+            $ciphertext,
+            self::METHOD,
+            self::get_key(),
+            OPENSSL_RAW_DATA,
+            $iv
+        );
+
+        return $decrypted;
+    }
+
+    /**
+     * Decrypt legacy encrypted value (static IV without prefix).
+     *
+     * @param string $value The encrypted value without prefix.
+     * @return string|false The decrypted value or false on failure.
+     */
+    private static function decrypt_legacy( $value ) {
+        if ( ! function_exists( 'openssl_decrypt' ) ) {
             return base64_decode( $value );
         }
 
@@ -103,7 +189,7 @@ class AITWP_Encryption {
             self::METHOD,
             self::get_key(),
             0,
-            self::get_iv()
+            self::get_legacy_iv()
         );
 
         return $decrypted;
@@ -132,14 +218,40 @@ class AITWP_Encryption {
     }
 
     /**
-     * Check if a value looks like it's already encrypted.
+     * Check if a value is encrypted by this class.
      *
      * @param string $value The value to check.
      * @return bool
      */
     public static function is_encrypted( $value ) {
-        // Check if it's base64 encoded and decodes to something that looks encrypted
-        $decoded = base64_decode( $value, true );
-        return false !== $decoded && $decoded !== $value;
+        if ( empty( $value ) ) {
+            return false;
+        }
+
+        // Check for v2 prefix
+        return strpos( $value, self::ENCRYPTED_PREFIX ) === 0;
+    }
+
+    /**
+     * Migrate a legacy encrypted value to v2 format.
+     *
+     * @param string $encrypted_value The legacy encrypted value.
+     * @return string|false The v2 encrypted value or false on failure.
+     */
+    public static function migrate_to_v2( $encrypted_value ) {
+        // Already v2
+        if ( strpos( $encrypted_value, self::ENCRYPTED_PREFIX ) === 0 ) {
+            return $encrypted_value;
+        }
+
+        // Decrypt with legacy method
+        $decrypted = self::decrypt( $encrypted_value );
+
+        if ( false === $decrypted || empty( $decrypted ) ) {
+            return false;
+        }
+
+        // Re-encrypt with v2
+        return self::encrypt( $decrypted );
     }
 }

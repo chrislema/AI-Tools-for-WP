@@ -187,8 +187,13 @@ class AITWP_Categorizer {
         // Trim
         $content = trim( $content );
 
-        // Limit length to avoid token limits
-        $max_length = 8000;
+        /**
+         * Filter the maximum content length for categorization.
+         *
+         * @param int $max_length Maximum characters to send to AI.
+         */
+        $max_length = apply_filters( 'aitwp_categorizer_max_content_length', 8000 );
+
         if ( strlen( $content ) > $max_length ) {
             $content = substr( $content, 0, $max_length ) . '...';
         }
